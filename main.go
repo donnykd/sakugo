@@ -21,43 +21,68 @@ type Post struct {
 	PreviewHeight int    `json:"preview_height"`
 }
 
+type PostConfig struct {
+	Limit int
+	Tag   string
+}
+
 type Artist struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
 }
 
-type Tags struct {
+type Tag struct {
 	ID    int    `json:"id"`
 	Name  string `json:"name"`
 	Count int    `json:"count"`
 }
 
-func main() {
-	postResp, _ := http.Get("https://www.sakugabooru.com/post.json?tags=id:217484")
-	defer postResp.Body.Close()
+func fetchPosts(cfg PostConfig) ([]Post, error) {
+	limit := 8
+	if cfg.Limit != 0 {
+		limit = cfg.Limit
+	}
+
+	var artist string
+	if cfg.Tag != "" {
+		artist = cfg.Tag
+	}
+
+	url := fmt.Sprintf("https://www.sakugabooru.com/post.json?limit=%d", limit)
+	if artist != "" {
+		url += "&tags=" + artist
+	}
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("Could not get post: %v", err)
+	}
+	defer resp.Body.Close()
 
 	var posts []Post
-	json.NewDecoder(postResp.Body).Decode(&posts)
+	if err := json.NewDecoder(resp.Body).Decode(&posts); err != nil {
+		return nil, fmt.Errorf("Could not decode json: %v", err)
+	}
 
-	post := posts[0]
-	fmt.Printf("ID: %d, Tags: %s, CreatedAt: %d, Source: %s, Score: %d, FileURL: %s \n \n",
-		post.ID, post.Tags, post.CreatedAt, post.Source, post.Score, post.FileURL)
+	return posts, nil
+}
 
-	artistResp, _ := http.Get("https://www.sakugabooru.com/artist.json?name=shingo_yamashita")
-	defer artistResp.Body.Close()
+func main() {
+	posts, err := fetchPosts(PostConfig{
+		Limit: 5,
+		Tag:   "shingo_yamashita", //multiple tags
+		// order
+	})
+	if err != nil {
+		fmt.Printf("Error: %v", err)
+	}
 
-	var artists []Artist
-	json.NewDecoder(artistResp.Body).Decode(&artists)
+	if len(posts) == 0 {
+		fmt.Println("Nobody here but us chickens!")
+	}
 
-	artist := artists[0]
-	fmt.Printf("ID: %d, Name: %s \n \n", artist.ID, artist.Name)
-
-	tagResp, _ := http.Get("https://www.sakugabooru.com/tag.json?name=kanada_light_flare")
-	defer tagResp.Body.Close()
-
-	var tags []Tags
-	json.NewDecoder(tagResp.Body).Decode(&tags)
-
-	tag := tags[0]
-	fmt.Printf("ID: %d, Name: %s, Count: %d \n", tag.ID, tag.Name, tag.Count)
+	for _, post := range posts {
+		fmt.Printf("ID: %d, Tags: %s, CreatedAt: %d, Source: %s, Score: %d, FileURL: %s \n \n",
+			post.ID, post.Tags, post.CreatedAt, post.Source, post.Score, post.FileURL)
+	}
 }
