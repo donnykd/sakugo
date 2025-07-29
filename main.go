@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 type Post struct {
@@ -12,7 +13,7 @@ type Post struct {
 	CreatedAt     int    `json:"created_at"`
 	Source        string `json:"source"`
 	Score         int    `json:"score"`
-	FileEXT       string `json:"file_ext"`
+	FileExt       string `json:"file_ext"`
 	FileURL       string `json:"file_url"`
 	Width         int    `json:"width"`
 	Height        int    `json:"height"`
@@ -23,7 +24,7 @@ type Post struct {
 
 type PostConfig struct {
 	Limit int
-	Tag   string
+	Tags  []string
 }
 
 type Artist struct {
@@ -37,22 +38,7 @@ type Tag struct {
 	Count int    `json:"count"`
 }
 
-func fetchPosts(cfg PostConfig) ([]Post, error) {
-	limit := 8
-	if cfg.Limit != 0 {
-		limit = cfg.Limit
-	}
-
-	var artist string
-	if cfg.Tag != "" {
-		artist = cfg.Tag
-	}
-
-	url := fmt.Sprintf("https://www.sakugabooru.com/post.json?limit=%d", limit)
-	if artist != "" {
-		url += "&tags=" + artist
-	}
-
+func makeRequest(url string) ([]Post, error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("Could not get post: %v", err)
@@ -67,11 +53,26 @@ func fetchPosts(cfg PostConfig) ([]Post, error) {
 	return posts, nil
 }
 
+func fetchPosts(cfg PostConfig) ([]Post, error) {
+	limit := 8
+	if cfg.Limit != 0 {
+		limit = cfg.Limit
+	}
+
+	url := fmt.Sprintf("https://www.sakugabooru.com/post.json?limit=%d", limit)
+
+	if len(cfg.Tags) > 0 {
+		tagString := strings.Join(cfg.Tags, "+")
+		url += "&tags=" + tagString
+	}
+
+	return makeRequest(url)
+}
+
 func main() {
 	posts, err := fetchPosts(PostConfig{
 		Limit: 5,
-		Tag:   "shingo_yamashita", //multiple tags
-		// order
+		Tags:  []string{"vincent_chansard", "order:score", "yen_bm"},
 	})
 	if err != nil {
 		fmt.Printf("Error: %v", err)
