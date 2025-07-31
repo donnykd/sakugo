@@ -3,8 +3,10 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type Post struct {
@@ -46,23 +48,33 @@ func validatePost(post Post) (Post, error) {
 }
 
 func makeRequest(url string) ([]Post, error) {
-	resp, err := http.Get(url)
+	httpClient := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	resp, err := httpClient.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("Could not get post: %v", err)
 	}
 	defer resp.Body.Close()
 
-	var posts []Post
-	if err := json.NewDecoder(resp.Body).Decode(&posts); err != nil {
-		return nil, fmt.Errorf("Could not decode json: %v", err)
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("API error (status %d): %s", resp.StatusCode, string(body))
 	}
 
-	for i, post := range posts {
-		if _, error := validatePost(post); error != nil {
-			posts = append(posts[:i], posts[:i+1]...)
+	var posts []Post
+	if err := json.NewDecoder(resp.Body).Decode(&posts); err != nil {
+		return nil, fmt.Errorf("Could not decode JSON: %v", err)
+	}
+
+	var filteredPosts []Post
+	for _, post := range posts {
+		if validPost, error := validatePost(post); error == nil {
+			filteredPosts = append(filteredPosts, validPost)
 		}
 	}
-	return posts, nil
+	return filteredPosts, nil
 }
 
 func FetchPosts(cfg PostConfig) ([]Post, error) {
