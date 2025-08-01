@@ -1,6 +1,8 @@
 package model
 
-import "github.com/donnykd/sakugo/client"
+import (
+	"github.com/donnykd/sakugo/client"
+)
 
 type ViewState int
 
@@ -25,17 +27,31 @@ type Model struct {
 	CurrentPage  int
 }
 
-func (m *Model) NewModel() (*Model, error) {
-	model := Model{
+func NewModel() *Model {
+	return &Model{
 		Posts:        make([]client.Post, 0),
 		CurrentIndex: 0,
-		SearchConfig: client.PostConfig{},
-		isLoading:    false,
 		ViewState:    Home,
-		ErrorMessage: "",
-		HasMorePages: false,
 		CurrentPage:  1,
 	}
+}
 
-	return &model, nil
+func (m *Model) GoHome() {
+	m.ViewState = Home
+}
+
+func (m *Model) LoadPosts() {
+	m.ViewState = Loading
+	
+	posts, err := client.FetchPosts(m.SearchConfig)
+	
+	if err != nil{
+		m.ViewState = Error
+		m.ErrorMessage = "Nobody here but us chickens!"
+		return
+	}
+	
+	m.Posts = posts
+	m.CurrentIndex = 0
+	m.ViewState = PostsView
 }
