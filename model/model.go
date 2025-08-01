@@ -36,7 +36,7 @@ func NewModel() *Model {
 	}
 }
 
-func (m *Model) GoHome() {
+func (m *Model) LoadHome() {
 	m.ViewState = Home
 }
 
