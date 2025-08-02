@@ -9,6 +9,8 @@ import (
 )
 
 var (
+	tabs = []string{"Home", "Posts", "Search", "Tags"}
+
 	highlight = lipgloss.AdaptiveColor{
 		Light: "#DD4B5F",
 		Dark:  "#f6546a",
@@ -21,20 +23,6 @@ var (
 
 	titleStyle  = lipgloss.NewStyle().Bold(true).Foreground(highlight)
 	optionStyle = lipgloss.NewStyle().Bold(true).Foreground(option)
-
-	tabBorder = lipgloss.Border{
-		Top:      "─",
-		Left:     "│",
-		Right:    "│",
-		TopLeft:  "╭",
-		TopRight: "╮",
-		Bottom:   "^",
-	}
-
-	tab = lipgloss.NewStyle().
-		Border(tabBorder, true).
-		BorderForeground(highlight).
-		Padding(0, 3)
 
 	pageBorder = lipgloss.Border{
 		Top:         "─",
@@ -74,15 +62,19 @@ func (t tui) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			t.model.TerminalHeight = 20
 		}
 	case tea.KeyMsg:
-		if msg.String() == "q" || msg.String() == "ctrl+c" {
+		switch msg.String() {
+		case "q", "ctrl+c":
 			return t, tea.Quit
+		case "right":
+			t.tabIndex = (t.tabIndex + 1) % len(tabs)
+		case "left":
+			t.tabIndex = (t.tabIndex - 1 + len(tabs)) % len(tabs)
 		}
 	}
 	return t, nil
 }
 
 func (t tui) renderTabs() string {
-	tabs := []string{"Home", "Posts", "Search", "Tags"}
 	var renderedTabs []string
 
 	for i, tab := range tabs {
