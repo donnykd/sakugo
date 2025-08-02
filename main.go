@@ -70,6 +70,13 @@ func (t tui) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		t.model.TerminalHeight = msg.Height
 		t.model.TerminalWidth = msg.Width
+
+		if t.model.TerminalWidth < 70 {
+			t.model.TerminalWidth = 70
+		}
+		if t.model.TerminalHeight < 20 {
+			t.model.TerminalHeight = 20
+		}
 	case tea.KeyMsg:
 		if msg.String() == "q" || msg.String() == "ctrl+c" {
 			return t, tea.Quit
@@ -107,6 +114,6 @@ func (t tui) View() string {
 
 func main() {
 	m := model.NewModel()
-	program := tea.NewProgram(tui{model: m})
+	program := tea.NewProgram(tui{model: m}, tea.WithAltScreen())
 	program.Run()
 }
