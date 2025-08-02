@@ -86,10 +86,16 @@ func (t tui) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (t tui) renderHomePage() string {
-	homeTab := activeTab.Render("Home")
+	firstTabBorder := activeTabBorder
+	firstTabBorder.BottomLeft = "╵"
+
+	lastTabBorder := tabBorder
+	lastTabBorder.BottomRight = "┘"
+
+	homeTab := activeTab.Border(firstTabBorder, true).Render("Home")
 	postsTab := tab.Render("Posts")
 	searchTab := tab.Render("Search")
-	tagsTab := tab.Render("Tags")
+	tagsTab := tab.Border(lastTabBorder, true).Render("Tags")
 
 	tabs := lipgloss.JoinHorizontal(lipgloss.Top, homeTab, postsTab, searchTab, tagsTab)
 	centeredTabs := lipgloss.NewStyle().Width(t.model.TerminalWidth).AlignHorizontal(lipgloss.Center).Render(tabs)
