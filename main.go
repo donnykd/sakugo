@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/donnykd/sakugo/model"
@@ -12,12 +14,21 @@ var (
 		Dark:  "#f6546a",
 	}
 
+	option = lipgloss.AdaptiveColor{
+		Light: "#ec9da8",
+		Dark:  "#ec9da8",
+	}
+
+	titleStyle  = lipgloss.NewStyle().Bold(true).Foreground(highlight)
+	optionStyle = lipgloss.NewStyle().Bold(true).Foreground(option)
+
 	tabBorder = lipgloss.Border{
 		Top:      "─",
 		Left:     "│",
 		Right:    "│",
 		TopLeft:  "╭",
 		TopRight: "╮",
+		Bottom:   "^",
 	}
 
 	tab = lipgloss.NewStyle().
@@ -71,14 +82,22 @@ func (t tui) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (t tui) renderTabs() string {
-	homeTab := tab.Render("Home")
-	postsTab := tab.Render("Posts")
-	searchTab := tab.Render("Search")
-	tagsTab := tab.Render("Tags")
+	tabs := []string{"Home", "Posts", "Search", "Tags"}
+	var renderedTabs []string
 
-	tabs := lipgloss.JoinHorizontal(lipgloss.Top, homeTab, postsTab, searchTab, tagsTab)
-	centeredTabs := lipgloss.NewStyle().Width(t.model.TerminalWidth).AlignHorizontal(lipgloss.Center).Render(tabs)
-	return centeredTabs
+	for i, tab := range tabs {
+		var selectedText string
+		if i == t.tabIndex {
+			selectedText = fmt.Sprintf("[ %s ]", tab)
+			renderedTabs = append(renderedTabs, titleStyle.Render(selectedText))
+		} else {
+			selectedText = fmt.Sprintf("  %s  ", tab)
+			renderedTabs = append(renderedTabs, optionStyle.Render(selectedText))
+		}
+	}
+
+	tabLine := lipgloss.JoinHorizontal(lipgloss.Center, renderedTabs...)
+	return lipgloss.NewStyle().Width(t.model.TerminalWidth).AlignHorizontal(lipgloss.Center).Render(tabLine)
 }
 
 func (t tui) renderPage(content string) string {
@@ -92,7 +111,7 @@ func (t tui) renderPage(content string) string {
 }
 
 func (t tui) renderHome() string {
-	title := lipgloss.NewStyle().Bold(true).Foreground(highlight).Render("Sakugo - Sakugabooru TUI Client")
+	title := titleStyle.Render("Sakugo - Sakugabooru TUI Client")
 	centeredTitle := lipgloss.NewStyle().Width(t.model.TerminalWidth).AlignHorizontal(lipgloss.Center).Render(title)
 
 	content := lipgloss.JoinVertical(lipgloss.Left, "", centeredTitle, "", "Press a key to navigate...")
