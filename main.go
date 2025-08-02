@@ -1,8 +1,6 @@
 package main
 
 import (
-	"strings"
-
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/donnykd/sakugo/model"
@@ -17,8 +15,8 @@ var (
 	tabBorder = lipgloss.Border{
 		Top:         "─",
 		Bottom:      "─",
-		Left:        "|",
-		Right:       "|",
+		Left:        "│",
+		Right:       "│",
 		TopLeft:     "╭",
 		TopRight:    "╮",
 		BottomLeft:  "┴",
@@ -28,8 +26,8 @@ var (
 	activeTabBorder = lipgloss.Border{
 		Top:         "─",
 		Bottom:      "",
-		Left:        "|",
-		Right:       "|",
+		Left:        "│",
+		Right:       "│",
 		TopLeft:     "╭",
 		TopRight:    "╮",
 		BottomLeft:  "┘",
@@ -39,27 +37,39 @@ var (
 	tab = lipgloss.NewStyle().
 		Border(tabBorder, true).
 		BorderForeground(highlight).
-		Padding(0, 2)
+		Padding(0, 3)
 
 	activeTab = tab.Border(activeTabBorder, true)
 
-	tabGap = tab.
-		BorderTop(false).
-		BorderLeft(false).
-		BorderRight(false)
+	pageBorder = lipgloss.Border{
+		Top:         "─",
+		Bottom:      "─",
+		Left:        "│",
+		Right:       "│",
+		TopLeft:     "╭",
+		TopRight:    "╮",
+		BottomLeft:  "╰",
+		BottomRight: "╯",
+	}
+
+	page = lipgloss.NewStyle().
+		Border(pageBorder, true).BorderForeground(highlight).Padding(0, 2)
 )
 
 type tui struct {
-	m *model.Model
+	model *model.Model
 }
 
 func (t tui) Init() tea.Cmd {
-	t.m.LoadHome()
+	t.model.LoadHome()
 	return nil
 }
 
 func (t tui) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		t.model.TerminalHeight = msg.Height
+		t.model.TerminalWidth = msg.Width
 	case tea.KeyMsg:
 		if msg.String() == "q" || msg.String() == "ctrl+c" {
 			return t, tea.Quit
@@ -75,19 +85,20 @@ func (t tui) renderHomePage() string {
 	tagsTab := tab.Render("Tags")
 
 	tabs := lipgloss.JoinHorizontal(lipgloss.Top, homeTab, postsTab, searchTab, tagsTab)
-
-	gap := tabGap.Render(strings.Repeat(" ", max(0, 96-lipgloss.Width(tabs)-2)))
+	centeredTabs := lipgloss.NewStyle().Width(t.model.TerminalWidth).AlignHorizontal(lipgloss.Center).Render(tabs)
 
 	title := lipgloss.NewStyle().Bold(true).Foreground(highlight).Render("Sakugo - Sakugabooru TUI Client")
+	centeredTitle := lipgloss.NewStyle().Width(t.model.TerminalWidth).AlignHorizontal(lipgloss.Center).Render(title)
 
-	content := lipgloss.JoinVertical(lipgloss.Left, tabs, "", title, "", gap, "Press a key to navigate...")
+	content := lipgloss.JoinVertical(lipgloss.Left, centeredTabs, "", centeredTitle, "", "Press a key to navigate...")
 
-	return content
+	page := page.Width(t.model.TerminalWidth - 2).Height(t.model.TerminalHeight - 2).Render(content)
 
+	return page
 }
 
 func (t tui) View() string {
-	switch t.m.ViewState {
+	switch t.model.ViewState {
 	case model.Home:
 		return t.renderHomePage()
 	}
@@ -96,6 +107,6 @@ func (t tui) View() string {
 
 func main() {
 	m := model.NewModel()
-	program := tea.NewProgram(tui{m: m})
+	program := tea.NewProgram(tui{model: m})
 	program.Run()
 }

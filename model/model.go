@@ -25,6 +25,9 @@ type Model struct {
 	// pagination
 	HasMorePages bool
 	CurrentPage  int
+
+	TerminalWidth  int
+	TerminalHeight int
 }
 
 func NewModel() *Model {
@@ -42,15 +45,15 @@ func (m *Model) LoadHome() {
 
 func (m *Model) LoadPosts() {
 	m.ViewState = Loading
-	
+
 	posts, err := client.FetchPosts(m.SearchConfig)
-	
-	if err != nil{
+
+	if err != nil {
 		m.ViewState = Error
 		m.ErrorMessage = "Nobody here but us chickens!"
 		return
 	}
-	
+
 	m.Posts = posts
 	m.CurrentIndex = 0
 	m.ViewState = PostsView
