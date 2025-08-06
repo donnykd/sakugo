@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/donnykd/sakugo/model"
@@ -42,14 +43,16 @@ var (
 type tui struct {
 	model    *model.Model
 	tabIndex int
+	spinner  spinner.Model
 }
 
-func (t tui) Init() tea.Cmd {
+func (t *tui) Init() tea.Cmd {
 	t.model.LoadHome()
+	t.initSpinner()
 	return nil
 }
 
-func (t tui) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (t *tui) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		t.model.TerminalHeight = msg.Height
@@ -69,12 +72,31 @@ func (t tui) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			t.tabIndex = (t.tabIndex + 1) % len(tabs)
 		case "left":
 			t.tabIndex = (t.tabIndex - 1 + len(tabs)) % len(tabs)
+		case "enter":
+			selectedTab := tabs[t.tabIndex]
+			switch selectedTab {
+			case "Home":
+				t.model.LoadHome()
+			case "Posts":
+				t.model.Loading()
+				return t, tea.Batch(tea.ClearScreen, t.spinner.Tick)
+			}
 		}
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		t.spinner, cmd = t.spinner.Update(msg)
+		return t, cmd
 	}
 	return t, nil
 }
 
-func (t tui) renderTabs() string {
+func (t *tui) initSpinner() {
+	t.spinner = spinner.New()
+	t.spinner.Spinner = spinner.Points
+	t.spinner.Style = titleStyle
+}
+
+func (t *tui) renderTabs() string {
 	var renderedTabs []string
 
 	for i, tab := range tabs {
@@ -92,7 +114,7 @@ func (t tui) renderTabs() string {
 	return lipgloss.NewStyle().Width(t.model.TerminalWidth).AlignHorizontal(lipgloss.Center).Render(tabLine)
 }
 
-func (t tui) renderPage(content string) string {
+func (t *tui) renderPage(content string) string {
 	tabs := t.renderTabs()
 	tabHeight := lipgloss.Height(tabs)
 
@@ -102,7 +124,19 @@ func (t tui) renderPage(content string) string {
 	return layout
 }
 
-func (t tui) renderHome() string {
+func (t *tui) renderLoading() string {
+	selectedTab := tabs[t.tabIndex]
+
+	loadingText := fmt.Sprintf("Loading %s %s", selectedTab, t.spinner.View())
+	centeredContent := lipgloss.NewStyle().Width(t.model.TerminalWidth).AlignHorizontal(lipgloss.Center).Render(loadingText)
+	content := lipgloss.JoinVertical(lipgloss.Left, "", centeredContent)
+
+	loading := t.renderPage(content)
+
+	return loading
+}
+
+func (t *tui) renderHome() string {
 	title := titleStyle.Render("Sakugo - Sakugabooru TUI Client")
 	centeredTitle := lipgloss.NewStyle().Width(t.model.TerminalWidth).AlignHorizontal(lipgloss.Center).Render(title)
 
@@ -113,16 +147,26 @@ func (t tui) renderHome() string {
 	return home
 }
 
-func (t tui) View() string {
+func (t *tui) renderPosts() string {
+	posts := t.renderPage("")
+
+	return posts
+}
+
+func (t *tui) View() string {
 	switch t.model.ViewState {
-	case model.Home:
+	case model.Loading:
+		return t.renderLoading()
+	case model.HomeView:
 		return t.renderHome()
+	case model.PostsView:
+		return t.renderPosts()
 	}
 	return ""
 }
 
 func main() {
 	m := model.NewModel()
-	program := tea.NewProgram(tui{model: m}, tea.WithAltScreen())
+	program := tea.NewProgram(&tui{model: m}, tea.WithAltScreen())
 	program.Run()
 }

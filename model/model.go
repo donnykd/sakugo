@@ -7,8 +7,10 @@ import (
 type ViewState int
 
 const (
-	Home ViewState = iota
+	HomeView ViewState = iota
 	PostsView
+	SearchView
+	TagsView
 	PostDetail
 	Loading
 	Error
@@ -18,7 +20,6 @@ type Model struct {
 	Posts        []client.Post
 	CurrentIndex int
 	SearchConfig client.PostConfig
-	isLoading    bool
 	ViewState    ViewState
 	ErrorMessage string
 
@@ -34,18 +35,24 @@ func NewModel() *Model {
 	return &Model{
 		Posts:        make([]client.Post, 0),
 		CurrentIndex: 0,
-		ViewState:    Home,
-		CurrentPage:  1,
+		SearchConfig: client.PostConfig{
+			Limit: 5,
+			Tags:  []string{"order:score"},
+		},
+		ViewState:   HomeView,
+		CurrentPage: 1,
 	}
 }
 
-func (m *Model) LoadHome() {
-	m.ViewState = Home
+func (m *Model) Loading() {
+	m.ViewState = Loading
 }
 
-func (m *Model) LoadPosts() {
-	m.ViewState = Loading
+func (m *Model) LoadHome() {
+	m.ViewState = HomeView
+}
 
+func (m *Model) LoadPosts(err error) {
 	posts, err := client.FetchPosts(m.SearchConfig)
 
 	if err != nil {
