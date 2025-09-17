@@ -1,6 +1,10 @@
+// Package client provides a client for the sakugabooru API
+//
+// This package allows fetching posts and processing different tags
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,6 +16,11 @@ import (
 type Post struct {
 	ID            int    `json:"id"`
 	Tags          string `json:"tags"`
+	Names         []Tag  `json:"-"`
+	Artists       []Tag  `json:"-"`
+	Style         []Tag  `json:"-"`
+	Meta          []Tag  `json:"-"`
+	General       []Tag  `json:"-"`
 	CreatedAt     int    `json:"created_at"`
 	Source        string `json:"source"`
 	Score         int    `json:"score"`
@@ -24,15 +33,9 @@ type Post struct {
 	PreviewHeight int    `json:"preview_height"`
 }
 
-type Artist struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
-}
-
 type Tag struct {
-	ID    int    `json:"id"`
-	Name  string `json:"name"`
-	Count int    `json:"count"`
+	Name string `json:"name"`
+	Type int    `json:"type"`
 }
 
 type PostConfig struct {
@@ -47,14 +50,19 @@ func validatePost(post Post) (Post, error) {
 	return Post{}, fmt.Errorf("invalid post: ID=%d, FileURL='%s'", post.ID, post.FileURL)
 }
 
-func makeRequest(url string) ([]Post, error) {
+func makeRequest(ctx context.Context, reqURL string) ([]Post, error) {
 	httpClient := &http.Client{
-		Timeout: 30 * time.Second,
+		Timeout: 10 * time.Second,
 	}
 
-	resp, err := httpClient.Get(url)
+	req, err := http.NewRequestWithContext(ctx, "GET", reqURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("Could not get post: %v", err)
+		return nil, fmt.Errorf("could not create request: %v", err)
+	}
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("could not get post: %v", err)
 	}
 	defer resp.Body.Close()
 
@@ -65,30 +73,34 @@ func makeRequest(url string) ([]Post, error) {
 
 	var posts []Post
 	if err := json.NewDecoder(resp.Body).Decode(&posts); err != nil {
-		return nil, fmt.Errorf("Could not decode JSON: %v", err)
+		return nil, fmt.Errorf("could not decode JSON: %v", err)
 	}
 
 	var filteredPosts []Post
 	for _, post := range posts {
-		if validPost, error := validatePost(post); error == nil {
+		if validPost, err := validatePost(post); err == nil {
+			if err = validPost.setTags(ctx); err != nil {
+				return nil, fmt.Errorf("could not set tags for post '%d' error: %v", validPost.ID, err)
+			}
 			filteredPosts = append(filteredPosts, validPost)
 		}
 	}
+
 	return filteredPosts, nil
 }
 
-func FetchPosts(cfg PostConfig) ([]Post, error) {
+func FetchPosts(ctx context.Context, cfg PostConfig) ([]Post, error) {
 	limit := 8
-	if cfg.Limit != 0 {
+	if cfg.Limit > 0 {
 		limit = cfg.Limit
 	}
 
-	url := fmt.Sprintf("https://www.sakugabooru.com/post.json?limit=%d", limit)
+	reqURL := fmt.Sprintf("https://www.sakugabooru.com/post.json?limit=%d", limit)
 
 	if len(cfg.Tags) > 0 {
 		tagString := strings.Join(cfg.Tags, "+")
-		url += "&tags=" + tagString
+		reqURL += "&tags=" + tagString
 	}
 
-	return makeRequest(url)
+	return makeRequest(ctx, reqURL)
 }

@@ -1,6 +1,9 @@
 package model
 
 import (
+	"context"
+	"time"
+
 	"github.com/donnykd/sakugo/client"
 )
 
@@ -52,16 +55,12 @@ func (m *Model) LoadHome() {
 	m.ViewState = HomeView
 }
 
-func (m *Model) LoadPosts(err error) {
-	posts, err := client.FetchPosts(m.SearchConfig)
+func (m *Model) LoadPosts() {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-	if err != nil {
-		m.ViewState = Error
-		m.ErrorMessage = "Nobody here but us chickens!"
-		return
-	}
+	posts, _ := client.FetchPosts(ctx, m.SearchConfig)
 
 	m.Posts = posts
-	m.CurrentIndex = 0
 	m.ViewState = PostsView
 }
