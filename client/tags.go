@@ -27,6 +27,11 @@ type TagCache struct {
 	mu    sync.RWMutex
 }
 
+type tagResult struct {
+	tag Tag
+	err error
+}
+
 func newTagCache() *TagCache {
 	return &TagCache{
 		cache: make(map[string]Tag),
@@ -47,32 +52,46 @@ func (tc *TagCache) Get(key string) (Tag, bool) {
 }
 
 func (p *Post) setTags(ctx context.Context) error {
-	for tagName := range strings.SplitSeq(p.Tags, " ") {
-		if tagName == "" {
-			continue
-		}
-
-		tag, err := getTagByName(ctx, tagName)
-		if err != nil {
-			return fmt.Errorf("could not get tag: %v", err)
-		}
-
-		switch tag.Type {
-		case GeneralTag:
-			p.General = append(p.General, tag)
-		case ArtistTag:
-			p.Artists = append(p.Artists, tag)
-		case NameTag:
-			p.Names = append(p.Names, tag)
-		case StyleTag:
-			p.Style = append(p.Style, tag)
-		case MetaTag:
-			p.Meta = append(p.Meta, tag)
-		default:
-			p.General = append(p.General, tag)
-		}
+	tagNames := strings.Fields(p.Tags)
+	if len(tagNames) == 0 {
+		return nil
 	}
 
+	ch := make(chan tagResult, len(tagNames))
+	var wg sync.WaitGroup
+	wg.Add(len(tagNames))
+
+	for _, tagName := range tagNames {
+		go func(name string) {
+			defer wg.Done()
+			tag, err := getTagByName(ctx, name)
+			ch <- tagResult{tag, err}
+		}(tagName)
+	}
+
+	wg.Wait()
+	close(ch)
+
+	for result := range ch {
+		if result.err != nil {
+			return fmt.Errorf("could not get tag: %v", result.err)
+		}
+
+		switch result.tag.Type {
+		case GeneralTag:
+			p.General = append(p.General, result.tag)
+		case ArtistTag:
+			p.Artists = append(p.Artists, result.tag)
+		case NameTag:
+			p.Names = append(p.Names, result.tag)
+		case StyleTag:
+			p.Style = append(p.Style, result.tag)
+		case MetaTag:
+			p.Meta = append(p.Meta, result.tag)
+		default:
+			p.General = append(p.General, result.tag)
+		}
+	}
 	return nil
 }
 
@@ -86,7 +105,7 @@ func getTagByName(ctx context.Context, tagName string) (Tag, error) {
 	}
 
 	encodedTag := url.QueryEscape(tagName)
-	reqURL := fmt.Sprintf("https://www.sakugabooru.com/tag.json?name=%s", encodedTag)
+	reqURL := fmt.Sprintf("https://www.sakugabooru.com/tag.json?name=%s&order=count&limit=1", encodedTag)
 	req, err := http.NewRequestWithContext(ctx, "GET", reqURL, nil)
 	if err != nil {
 		return Tag{}, fmt.Errorf("could not create request: %v", err)
@@ -113,6 +132,7 @@ func getTagByName(ctx context.Context, tagName string) (Tag, error) {
 	}
 
 	foundTag := tags[0]
+	fmt.Println(foundTag)
 	globalCache.Set(foundTag.Name, foundTag)
 
 	return foundTag, nil

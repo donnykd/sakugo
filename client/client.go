@@ -99,6 +99,7 @@ func FetchPosts(ctx context.Context, cfg PostConfig) ([]Post, error) {
 
 	if len(cfg.Tags) > 0 {
 		tagString := strings.Join(cfg.Tags, "+")
+		fmt.Println(tagString)
 		reqURL += "&tags=" + tagString
 	}
 
