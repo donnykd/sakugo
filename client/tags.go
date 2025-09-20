@@ -132,7 +132,6 @@ func getTagByName(ctx context.Context, tagName string) (Tag, error) {
 	}
 
 	foundTag := tags[0]
-	fmt.Println(foundTag)
 	globalCache.Set(foundTag.Name, foundTag)
 
 	return foundTag, nil

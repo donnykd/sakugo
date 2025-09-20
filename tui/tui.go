@@ -1,31 +1,27 @@
 package tui
 
 import (
-	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/donnykd/sakugo/client"
 	"github.com/donnykd/sakugo/model"
 )
 
 var (
-	tabs = []string{"Home", "Posts", "Search", "Tags"}
-
 	highlight = lipgloss.AdaptiveColor{
 		Light: "#DD4B5F",
 		Dark:  "#f6546a",
 	}
-
 	option = lipgloss.AdaptiveColor{
 		Light: "#ec9da8",
 		Dark:  "#ec9da8",
 	}
-
 	titleStyle  = lipgloss.NewStyle().Bold(true).Foreground(highlight)
 	optionStyle = lipgloss.NewStyle().Bold(true).Foreground(option)
-
-	pageBorder = lipgloss.Border{
+	pageBorder  = lipgloss.Border{
 		Top:         "─",
 		Bottom:      "─",
 		Left:        "│",
@@ -35,28 +31,33 @@ var (
 		BottomLeft:  "╰",
 		BottomRight: "╯",
 	}
-
 	page = lipgloss.NewStyle().
 		Border(pageBorder, true).BorderForeground(highlight).Padding(0, 2)
 )
 
-type tui struct {
+type Tui struct {
 	model    *model.Model
 	tabIndex int
 	spinner  spinner.Model
 }
 
-func (t *tui) Init() tea.Cmd {
+func NewTui(m *model.Model) *Tui {
+	return &Tui{
+		model:    m,
+		tabIndex: 0,
+	}
+}
+
+func (t *Tui) Init() tea.Cmd {
 	t.model.LoadPosts()
 	return nil
 }
 
-func (t *tui) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (t *Tui) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		t.model.TerminalHeight = msg.Height
 		t.model.TerminalWidth = msg.Width
-
 		if t.model.TerminalWidth < 70 {
 			t.model.TerminalWidth = 70
 		}
@@ -72,7 +73,7 @@ func (t *tui) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return t, nil
 }
 
-func (t *tui) View() string {
+func (t *Tui) View() string {
 	switch t.model.ViewState {
 	case model.PostsView:
 		return t.renderPosts()
@@ -80,54 +81,33 @@ func (t *tui) View() string {
 	return ""
 }
 
-func (t *tui) renderTabs() string {
-	var renderedTabs []string
-
-	for i, tab := range tabs {
-		var selectedText string
-		if i == t.tabIndex {
-			selectedText = fmt.Sprintf("[ %s ]", tab)
-			renderedTabs = append(renderedTabs, titleStyle.Render(selectedText))
-		} else {
-			selectedText = fmt.Sprintf("  %s  ", tab)
-			renderedTabs = append(renderedTabs, optionStyle.Render(selectedText))
-		}
-	}
-
-	tabLine := lipgloss.JoinHorizontal(lipgloss.Center, renderedTabs...)
-	return lipgloss.NewStyle().Width(t.model.TerminalWidth).AlignHorizontal(lipgloss.Center).Render(tabLine)
-}
-
-func (t *tui) renderPage(content string) string {
+func (t *Tui) renderPage(content string) string {
 	page := page.Width(t.model.TerminalWidth - 2).Height(t.model.TerminalHeight - 2).Render(content)
 	layout := lipgloss.JoinVertical(lipgloss.Left, page)
-
 	return layout
 }
 
-func (t *tui) renderHome() string {
-	title := titleStyle.Render("Sakugo - Sakugabooru TUI Client")
-	centeredTitle := lipgloss.NewStyle().Width(t.model.TerminalWidth).AlignHorizontal(lipgloss.Center).Render(title)
-
-	content := lipgloss.JoinVertical(lipgloss.Left, "", centeredTitle, "", "Press a key to navigate...")
-
-	home := t.renderPage(content)
-
-	return home
+func (t *Tui) postTab(p client.Post) string {
+	seen := make(map[string]bool)
+	var postNames []string
+	for _, name := range p.Names {
+		if !seen[name.Name] {
+			postNames = append(postNames, name.Name)
+			seen[name.Name] = true
+		}
+	}
+	return titleStyle.Render(strings.Join(postNames, " - "))
 }
 
-func (t *tui) renderPosts() string {
+func (t *Tui) renderPosts() string {
 	postsList := t.model.Posts
-	postName := titleStyle.Render(postsList[0].Names[0].Name)
-	centeredUrl := lipgloss.NewStyle().Width(t.model.TerminalWidth).AlignHorizontal(lipgloss.Center).Render(postName)
-
-	posts := t.renderPage(centeredUrl)
-
+	var createdTabs []string
+	for _, post := range postsList {
+		tab := t.postTab(post)
+		createdTabs = append(createdTabs, tab)
+	}
+	allTabs := strings.Join(createdTabs, "\n")
+	centeredContent := lipgloss.NewStyle().Width(t.model.TerminalWidth).AlignHorizontal(lipgloss.Center).Render(allTabs)
+	posts := t.renderPage(centeredContent)
 	return posts
-}
-
-func main() {
-	m := model.NewModel()
-	program := tea.NewProgram(&tui{model: m}, tea.WithAltScreen())
-	program.Run()
 }
