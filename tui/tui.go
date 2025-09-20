@@ -87,12 +87,17 @@ func (t *Tui) renderPage(content string) string {
 	return layout
 }
 
+func (t *Tui) cleanPostName(name string) string {
+	return strings.TrimSuffix(strings.ReplaceAll(name, "_", " "), " series")
+}
+
 func (t *Tui) postTab(p client.Post) string {
 	seen := make(map[string]bool)
 	var postNames []string
 	for _, name := range p.Names {
 		if !seen[name.Name] {
-			postNames = append(postNames, name.Name)
+			cleanedName := t.cleanPostName(name.Name)
+			postNames = append(postNames, cleanedName)
 			seen[name.Name] = true
 		}
 	}
