@@ -118,8 +118,13 @@ func (t *Tui) renderPosts() string {
 	postsList := t.model.Posts
 	var createdTabs []string
 	for _, post := range postsList {
+		postStyle := lipgloss.NewStyle().
+			Padding(1).
+			Width(t.model.TerminalWidth - 15)
+
 		tab := t.postTab(post)
-		createdTabs = append(createdTabs, tab)
+		styledTab := postStyle.Render(tab)
+		createdTabs = append(createdTabs, styledTab)
 	}
 	allTabs := strings.Join(createdTabs, "\n")
 	centeredContent := lipgloss.NewStyle().Width(t.model.TerminalWidth).
