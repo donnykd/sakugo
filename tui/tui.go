@@ -24,6 +24,10 @@ var (
 		Light: "#A4B0BE",
 		Dark:  "#A4B0BE",
 	}
+	bg = lipgloss.AdaptiveColor{
+		Light: "#222222",
+		Dark:  "#222222",
+	}
 	titleStyle  = lipgloss.NewStyle().Bold(true).Foreground(title)
 	optionStyle = lipgloss.NewStyle().Bold(true).Foreground(option)
 	pageBorder  = lipgloss.Border{
@@ -37,8 +41,13 @@ var (
 		BottomRight: "╯",
 	}
 	page = lipgloss.NewStyle().
-		Border(pageBorder, true).BorderForeground(highlight).Padding(0, 2)
+		Border(pageBorder, true).BorderForeground(highlight).Padding(0, 2).BorderBackground(bg)
 )
+
+func cleanTab(s string) string {
+	// Remove ANSI reset code and then resetForeground
+	return strings.ReplaceAll(s, "\x1b[0m", "") + "\x1b[39m"
+}
 
 type Tui struct {
 	model    *model.Model
@@ -87,7 +96,8 @@ func (t *Tui) View() string {
 }
 
 func (t *Tui) renderPage(content string) string {
-	page := page.Width(t.model.TerminalWidth - 2).Height(t.model.TerminalHeight - 2).Render(content)
+	page := page.Width(t.model.TerminalWidth - 2).
+		Height(t.model.TerminalHeight - 2).Background(bg).Render(content)
 	layout := lipgloss.JoinVertical(lipgloss.Left, page)
 	return layout
 }
@@ -111,7 +121,7 @@ func (t *Tui) postTab(p client.Post) string {
 	metadata := lipgloss.NewStyle().Foreground(option).
 		Render(fmt.Sprintf("ID: %d | Score: %d", p.ID, p.Score))
 	tab := lipgloss.JoinVertical(lipgloss.Left, title, metadata)
-	return tab
+	return cleanTab(tab)
 }
 
 func (t *Tui) renderPosts() string {
@@ -120,15 +130,14 @@ func (t *Tui) renderPosts() string {
 	for _, post := range postsList {
 		postStyle := lipgloss.NewStyle().
 			Padding(1).
-			Width(t.model.TerminalWidth - 15)
-
+			Width(t.model.TerminalWidth - 6)
 		tab := t.postTab(post)
 		styledTab := postStyle.Render(tab)
 		createdTabs = append(createdTabs, styledTab)
 	}
 	allTabs := strings.Join(createdTabs, "\n")
 	centeredContent := lipgloss.NewStyle().Width(t.model.TerminalWidth).
-		AlignHorizontal(lipgloss.Center).Render(allTabs)
+		AlignHorizontal(lipgloss.Top).Render(allTabs)
 	posts := t.renderPage(centeredContent)
 	return posts
 }
