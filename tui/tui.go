@@ -63,7 +63,7 @@ func NewTui(m *model.Model) *Tui {
 }
 
 func (t *Tui) Init() tea.Cmd {
-	t.model.LoadPosts()
+	t.model.SetPosts()
 	return nil
 }
 

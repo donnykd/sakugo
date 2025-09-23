@@ -4,19 +4,16 @@ import (
 	"context"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/donnykd/sakugo/client"
 )
 
 type ViewState int
 
 const (
-	HomeView ViewState = iota
+	LoadingView ViewState = iota
 	PostsView
-	SearchView
-	TagsView
-	PostDetail
-	Loading
-	Error
+	ErrorView
 )
 
 type Model struct {
@@ -25,10 +22,6 @@ type Model struct {
 	SearchConfig client.PostConfig
 	ViewState    ViewState
 	ErrorMessage string
-
-	// pagination
-	HasMorePages bool
-	CurrentPage  int
 
 	TerminalWidth  int
 	TerminalHeight int
@@ -42,25 +35,30 @@ func NewModel() *Model {
 			Limit: 5,
 			Tags:  []string{"order:score"},
 		},
-		ViewState:   HomeView,
-		CurrentPage: 1,
+		ViewState: LoadingView,
 	}
 }
 
-func (m *Model) Loading() {
-	m.ViewState = Loading
-}
-
-func (m *Model) LoadHome() {
-	m.ViewState = HomeView
-}
-
-func (m *Model) LoadPosts() {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+func (m *Model) SetPosts() tea.Cmd {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-
-	posts, _ := client.FetchPosts(ctx, m.SearchConfig)
+	posts, err := client.FetchPosts(ctx, m.SearchConfig)
+	if err != nil {
+		m.SetError("error")
+	}
 
 	m.Posts = posts
 	m.ViewState = PostsView
+	return nil
+}
+
+func (m *Model) SetError(err string) {
+	m.ErrorMessage = err
+	m.ViewState = ErrorView
+}
+
+func FetchPosts(config client.PostConfig) ([]client.Post, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return client.FetchPosts(ctx, config)
 }
