@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/spinner"
+	_ "github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/donnykd/sakugo/client"
@@ -95,10 +96,19 @@ func (t *Tui) View() string {
 	return ""
 }
 
+func (t *Tui) renderSearchBar() string {
+	searchBar := page.Width(t.model.TerminalWidth - 2).Height(1).Background(bg).Render("")
+	return searchBar
+}
+
 func (t *Tui) renderPage(content string) string {
+	searchBar := t.renderSearchBar()
 	page := page.Width(t.model.TerminalWidth - 2).
-		Height(t.model.TerminalHeight - 2).Background(bg).Render(content)
-	layout := lipgloss.JoinVertical(lipgloss.Left, page)
+		Height(t.model.TerminalHeight - 5).Background(bg).Render(content)
+
+	pageCombined := lipgloss.JoinVertical(lipgloss.Left, searchBar, page)
+	layout := lipgloss.Place(
+		t.model.TerminalWidth, t.model.TerminalHeight, lipgloss.Center, lipgloss.Bottom, pageCombined)
 	return layout
 }
 
