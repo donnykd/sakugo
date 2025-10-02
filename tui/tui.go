@@ -12,39 +12,6 @@ import (
 	"github.com/donnykd/sakugo/model"
 )
 
-var (
-	highlight = lipgloss.AdaptiveColor{
-		Light: "#FF4757",
-		Dark:  "#FF4757",
-	}
-	title = lipgloss.AdaptiveColor{
-		Light: "#FF4757",
-		Dark:  "#FF4757",
-	}
-	option = lipgloss.AdaptiveColor{
-		Light: "#A4B0BE",
-		Dark:  "#A4B0BE",
-	}
-	bg = lipgloss.AdaptiveColor{
-		Light: "#222222",
-		Dark:  "#222222",
-	}
-	titleStyle  = lipgloss.NewStyle().Bold(true).Foreground(title)
-	optionStyle = lipgloss.NewStyle().Bold(true).Foreground(option)
-	pageBorder  = lipgloss.Border{
-		Top:         "─",
-		Bottom:      "─",
-		Left:        "│",
-		Right:       "│",
-		TopLeft:     "╭",
-		TopRight:    "╮",
-		BottomLeft:  "╰",
-		BottomRight: "╯",
-	}
-	page = lipgloss.NewStyle().
-		Border(pageBorder, true).BorderForeground(highlight).Padding(0, 2).BorderBackground(bg)
-)
-
 func cleanTab(s string) string {
 	// Remove ANSI reset code and then resetForeground
 	return strings.ReplaceAll(s, "\x1b[0m", "") + "\x1b[39m"
@@ -97,18 +64,22 @@ func (t *Tui) View() string {
 }
 
 func (t *Tui) renderSearchBar() string {
-	searchBar := page.Width(t.model.TerminalWidth - 2).Height(1).Background(bg).Render("")
-	return searchBar
+	searchText := map[borderPosition]string{
+		TopLeftBorder:  "Search",
+		TopRightBorder: "Press ? for help",
+	}
+	searchBar := pane.Width(t.model.TerminalWidth - 2).Height(1).Background(bg).Render("")
+	return borderize(searchBar, searchText)
 }
 
 func (t *Tui) renderPage(content string) string {
 	searchBar := t.renderSearchBar()
-	page := page.Width(t.model.TerminalWidth - 2).
+	pane := pane.Width(t.model.TerminalWidth - 2).
 		Height(t.model.TerminalHeight - 5).Background(bg).Render(content)
 
-	pageCombined := lipgloss.JoinVertical(lipgloss.Left, searchBar, page)
+	fullPane := lipgloss.JoinVertical(lipgloss.Left, searchBar, pane)
 	layout := lipgloss.Place(
-		t.model.TerminalWidth, t.model.TerminalHeight, lipgloss.Center, lipgloss.Bottom, pageCombined)
+		t.model.TerminalWidth, t.model.TerminalHeight, lipgloss.Center, lipgloss.Bottom, fullPane)
 	return layout
 }
 
